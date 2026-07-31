@@ -133,6 +133,38 @@ scores written to a file — MLflow tucked them away for you behind the scenes.
 > Here MLflow saves the settings, the three scores, *and* the trained model — automatically,
 > every run. No more hand-written log.
 
+#### Why the file lives in `src/`, and what "with_tracking" means
+
+Putting code in a `src/` folder is a common convention — it keeps the source code separate from
+data, notebooks, and config so the project stays tidy as it grows. The `with_tracking` half of
+the name is the important part: this script is wired up to an **experiment-tracking tool**
+(MLflow here; Weights & Biases is another popular choice). Every run logs its dial settings and
+its resulting scores somewhere you can line them up side by side later — instead of printing to
+the terminal and losing the numbers the moment you close the window.
+
+#### The three dials, one at a time
+
+These flags come from `argparse` and feed straight into scikit-learn's `DecisionTreeClassifier`:
+
+| Flag | What it controls |
+| --- | --- |
+| `--max_depth` | How many levels of splits the tree may make. Lower = simpler model (risk of **underfitting**); higher = more complex (risk of **overfitting**). Default: `5`. |
+| `--min_samples` | Passed to scikit-learn's `min_samples_split` — the fewest rows a node must hold before it's allowed to split. Higher values force simpler, more generalized trees. Default: `2`. |
+| `--criterion` | The scoring function for split quality: `gini` (the default) or `entropy` (information gain). Different criteria can grow differently shaped trees on the same data. This one uses `nargs='?'`, so writing `--criterion` with no value means `entropy`. |
+
+#### What the three runs are actually comparing
+
+- **`--max_depth 3 --min_samples 2`** — a shallow, restricted tree. Your simplest, most
+  conservative model, and a good baseline.
+- **`--max_depth 8 --min_samples 5`** — a much deeper tree, but requiring more rows per split.
+  It tests whether extra complexity *with a guardrail* actually improves the scores.
+- **`--max_depth 6 --criterion entropy`** — moderate depth, but swaps the split metric from
+  `gini` to `entropy`, to see if information-gain-based splits suit this dataset better.
+
+Run together, this is a **manual grid search**: train three variants, then let the tracked
+accuracy, recall, and f1 tell you which combination generalizes best. Nothing is automated yet —
+you're the one picking the combinations — but MLflow makes the comparison honest.
+
 ### Step 6 — Open the notebook web page and compare
 
 Start MLflow's web page:
