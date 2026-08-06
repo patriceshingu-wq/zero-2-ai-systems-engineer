@@ -70,8 +70,9 @@ cd chapter-04-mlflow
 ```
 
 **What you should see:** your prompt shows you're inside `chapter-04-mlflow`. Type `ls` and you
-should see a `src` folder and a `README.md`. The three scripts live inside `src` — run `ls src`
-and you'll see `generate_data.py`, `train_with_tracking.py`, and `register_best_model.py`.
+should see a `src` folder and a `README.md`. The scripts live inside `src` — run `ls src`
+and you'll see `generate_data.py`, `train_with_tracking.py`, `register_best_model.py`, and
+`promote_model.py`.
 
 > You will run every command from *this* folder (`chapter-04-mlflow`), pointing at the scripts
 > with `src/` in front — like `python src/generate_data.py`. Staying in one folder keeps your
@@ -252,6 +253,15 @@ Registered version: 1
   running. Find the old terminal and press **Ctrl+C**, or just close that terminal, then try again.
 - **`register_best_model.py` errors about no runs** → You haven't trained anything yet. Run the
   experiments in Step 5 first.
+- **`promote_model.py` says "No experiment named ... yet"** → You're either in the wrong folder,
+  or you haven't trained that lab's runs yet. Make sure your prompt shows `chapter-04-mlflow`,
+  then run that lab's training script first.
+- **`Error: No such command 'set-registered-model-alias'`** → That command doesn't exist in
+  MLflow. Nicknames can only be set from Python, which is exactly what `src/promote_model.py`
+  does for you. Use the one-line command from section 4.9.4 instead.
+- **A yellow `WARNING ... registering model based on models:/...` line appears** → Harmless.
+  Newer MLflow versions store models in a slightly different spot and this note just says it
+  found yours. If the last three lines printed, it worked.
 
 ### Nuclear option — rebuild your toolbox from scratch
 
@@ -503,41 +513,67 @@ is: not a mystery box, just a folder you can open and read.
 
 ### 4.9.4 Register and Promote
 
-```python
-import mlflow
-from mlflow.tracking import MlflowClient
+There are two jobs to do here, and one command does both:
 
-client = MlflowClient()
-exp = mlflow.get_experiment_by_name('fraud-detection-v1')
-runs = client.search_runs(experiment_ids=[exp.experiment_id],
-                           order_by=['metrics.recall DESC'])
-best_id = runs[0].info.run_id
-uri = f'runs:/{best_id}/fraud_model'
-result = mlflow.register_model(uri, 'FraudDetectionModel')
+1. **Register** — put the winning run on the trophy shelf under a name.
+2. **Promote** — stick a nickname on it, like a gold medal sticker, so nobody ever has to
+   remember a version number.
+
+**STEP 1 — Run this one line** (from the `chapter-04-mlflow` folder, with `(venv)` showing):
+
+```bash
+python src/promote_model.py --experiment fraud-detection-v1 --metric recall --artifact fraud_model --model FraudDetectionModel --alias Champion
 ```
 
-**What this code is doing, in plain words:**
+It's one long line. Copy the whole thing, paste it, press Enter.
+
+**What you should see** (your score may differ — that's fine):
+
+```
+Best run: recall = 0.800
+Registered FraudDetectionModel version 1
+Nickname 'Champion' now points to version 1
+```
+
+**What the five dials mean, in plain words:**
+
+| Dial | In plain words |
+|---|---|
+| `--experiment fraud-detection-v1` | Which group of runs to look in |
+| `--metric recall` | Which score decides the winner |
+| `--artifact fraud_model` | What the saved model is called inside each run |
+| `--model FraudDetectionModel` | The name it gets on the trophy shelf |
+| `--alias Champion` | The nickname to stick on the winner |
+
+**STEP 2 — Go look at it.** In the web page, click **Models → FraudDetectionModel.** You'll see
+the new version with a **Champion** badge next to it.
+
+**What `promote_model.py` does, in plain words** (open it in VS Code to follow along):
 
 1. `MlflowClient()` opens the same helper you used back in `register_best_model.py` — a tool
    that can reach into the notebook and pull runs back out.
 2. `get_experiment_by_name(...)` finds the right notebook section — `fraud-detection-v1`.
 3. `search_runs(...)` asks for every run in that section, sorted best-to-worst by recall.
 4. `runs[0]` grabs the very first one in that sorted list — the winner.
-5. `uri = f'runs:/{best_id}/fraud_model'` builds the winner's "home address" inside MLflow, so
+5. `uri = f'runs:/{run_id}/fraud_model'` builds the winner's "home address" inside MLflow, so
    the next line knows exactly which saved model to grab.
 6. `mlflow.register_model(...)` places that model on the trophy shelf under the name
    `FraudDetectionModel`.
+7. `set_registered_model_alias(...)` sticks the `Champion` nickname on the version it just made.
+   From now on, anyone who asks for "the Champion fraud model" gets exactly this one.
 
-```bash
-mlflow models set-registered-model-alias FraudDetectionModel Champion 1
+> **Why the nickname matters.** Every time you register a winner, MLflow makes a *new* version —
+> 1, then 2, then 3. The nickname always moves to the newest one, so your other code can just
+> ask for `Champion` and never needs updating. That's the whole trick.
+
+Once a nickname exists, this is how you'd load that model anywhere else:
+
+```python
+model = mlflow.sklearn.load_model('models:/FraudDetectionModel@Champion')
 ```
 
-This line sticks a nickname — `Champion` — onto version 1 of `FraudDetectionModel`. Think of it
-like putting a gold medal sticker on the winning entry: from now on, anyone who asks for "the
-Champion fraud model" gets exactly this one, without needing to remember a version number.
-
-Back in the UI, click **Models → FraudDetectionModel.** You'll see the new version with a
-**Champion** badge next to it.
+The `@Champion` part is the payoff — real production code asks for the nickname, never a
+version number.
 
 ---
 
@@ -703,31 +739,47 @@ not just a score, the whole paper trail behind it.
 
 ### 4.10.4 Register — But Gate It Behind Human Review
 
-```python
-import mlflow
-from mlflow.tracking import MlflowClient
-
-client = MlflowClient()
-exp = mlflow.get_experiment_by_name('readmission-risk-v1')
-runs = client.search_runs(experiment_ids=[exp.experiment_id],
-                           order_by=['metrics.auc DESC'])
-best_id = runs[0].info.run_id
-uri = f'runs:/{best_id}/readmission_model'
-result = mlflow.register_model(uri, 'ReadmissionRiskModel')
-```
-
-This is the exact same five-step pattern as the fraud lab's register code — find the notebook
-section, ask for every run sorted best-to-worst (this time by `auc`), grab the winner's address,
-and place it on the trophy shelf, here named `ReadmissionRiskModel`.
+**STEP 1 — Run this one line** (from the `chapter-04-mlflow` folder):
 
 ```bash
-mlflow models set-registered-model-alias ReadmissionRiskModel Staging 1
+python src/promote_model.py --experiment readmission-risk-v1 --metric auc --artifact readmission_model --model ReadmissionRiskModel --alias Staging
 ```
 
-Notice this nickname says **Staging**, not Champion. In the **Models** tab, you'll see this
+**What you should see:**
+
+```
+Best run: auc = 0.816
+Registered ReadmissionRiskModel version 1
+Nickname 'Staging' now points to version 1
+```
+
+It's the same script you used in the fraud lab, with three dials changed: the group of runs is
+`readmission-risk-v1`, the score that picks the winner is `auc` instead of recall, and the
+nickname is **Staging** instead of Champion.
+
+**STEP 2 — Go look at it.** In the web page, click **Models → ReadmissionRiskModel.**
+
+Notice that nickname says **Staging**, not Champion. In the **Models** tab you'll see this
 version marked as staged — waiting on a clinician panel to review sample predictions before
 anyone promotes it further. That pause, made visible right in the web page, is the whole point
 of this lab: nothing in healthcare goes live just because a computer says "trust me."
+
+Later, when the clinicians sign off, you promote **that exact version** — the one they actually
+reviewed — by moving the nickname onto it. That's a shorter command, because there's no winner
+to find and nothing new to register:
+
+```bash
+python src/promote_model.py --model ReadmissionRiskModel --alias Champion --version 1
+```
+
+**What you should see:**
+
+```
+Nickname 'Champion' now points to ReadmissionRiskModel version 1
+```
+
+This distinction matters in a hospital: the version a clinician approved is the version that
+goes live, not a fresh one trained afterward.
 
 ---
 
@@ -874,29 +926,29 @@ Click your top run, open **Artifacts**, confirm `churn_model` is there.
 
 ### 4.11.4 Register the Winner
 
-```python
-import mlflow
-from mlflow.tracking import MlflowClient
-
-client = MlflowClient()
-exp = mlflow.get_experiment_by_name('subscriber-churn-v1')
-runs = client.search_runs(experiment_ids=[exp.experiment_id],
-                           order_by=['metrics.recall_churn DESC'])
-best_id = runs[0].info.run_id
-uri = f'runs:/{best_id}/churn_model'
-result = mlflow.register_model(uri, 'ChurnRiskModel')
-```
-
-Same five-step recipe a third time: open the helper, find the notebook section, ask for every
-run sorted best-to-worst (this time by `recall_churn`), grab the winner's address, and place it
-on the trophy shelf as `ChurnRiskModel`.
+**STEP 1 — Run this one line** (from the `chapter-04-mlflow` folder):
 
 ```bash
-mlflow models set-registered-model-alias ChurnRiskModel Champion 1
+python src/promote_model.py --experiment subscriber-churn-v1 --metric recall_churn --artifact churn_model --model ChurnRiskModel --alias Champion
 ```
 
-Same nickname trick as the fraud lab — `Champion` now points straight at version 1, so anyone
-asking for "the Champion churn model" always gets this exact one.
+**What you should see:**
+
+```
+Best run: recall_churn = 0.661
+Registered ChurnRiskModel version 1
+Nickname 'Champion' now points to version 1
+```
+
+Same script a third time, three dials changed: the runs live in `subscriber-churn-v1`, the score
+that picks the winner is `recall_churn`, and the trophy-shelf name is `ChurnRiskModel`.
+
+**STEP 2 — Go look at it.** In the web page, click **Models → ChurnRiskModel.** `Champion` now
+points straight at this version, so anyone asking for "the Champion churn model" always gets
+this exact one.
+
+By now you've done this three times in three different industries with the same one-line
+command. That repetition is the point — this is the habit, not a trick specific to any one job.
 
 ---
 
