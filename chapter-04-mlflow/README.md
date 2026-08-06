@@ -414,7 +414,7 @@ with mlflow.start_run():
     mlflow.log_metric('accuracy', accuracy_score(y_te, y_pred))
     mlflow.log_metric('recall', recall_score(y_te, y_pred))
     mlflow.log_metric('f1', f1_score(y_te, y_pred))
-    mlflow.sklearn.log_model(clf, 'fraud_model')
+    mlflow.sklearn.log_model(clf, name='fraud_model')
 ```
 
 **Now let's read it in small bites.**
@@ -445,7 +445,7 @@ just adding one more page to it, not starting over.
 ```python
 mlflow.log_param('max_depth', 6)
 mlflow.log_metric('recall', recall_score(y_te, y_pred))
-mlflow.sklearn.log_model(clf, 'fraud_model')
+mlflow.sklearn.log_model(clf, name='fraud_model')
 ```
 
 Nothing new here — you've done all three of these lines before. Run this script 4–5 times,
@@ -643,7 +643,7 @@ with mlflow.start_run():
     mlflow.log_metric('accuracy', accuracy_score(y_te, y_pred))
     mlflow.log_metric('auc', roc_auc_score(y_te, y_proba))
     mlflow.log_metric('recall_high_risk', recall_score(y_te, y_pred))
-    mlflow.sklearn.log_model(clf, 'readmission_model')
+    mlflow.sklearn.log_model(clf, name='readmission_model')
 ```
 
 **Now let's read it in small bites.**
@@ -738,6 +738,17 @@ not just a score, the whole paper trail behind it.
 ---
 
 ### 4.10.4 Register — But Gate It Behind Human Review
+
+> **Before you run this** — `promote_model.py` looks up an experiment that has to exist
+> *already*. If you skipped straight here, you'll hit `No experiment named
+> 'readmission-risk-v1' yet.` Make sure you've done these first, in order, with `(venv)` showing
+> in your prompt:
+>
+> ```bash
+> source venv/bin/activate                        # if (venv) isn't already showing
+> python usecases/generate_usecase_data.py         # creates data/patient_encounters.csv
+> python usecases/healthcare_readmission_lab.py    # trains runs, creates readmission-risk-v1
+> ```
 
 **STEP 1 — Run this one line** (from the `chapter-04-mlflow` folder):
 
@@ -842,7 +853,7 @@ with mlflow.start_run():
     mlflow.log_metric('accuracy', accuracy_score(y_te, y_pred))
     mlflow.log_metric('auc', roc_auc_score(y_te, y_proba))
     mlflow.log_metric('recall_churn', recall_score(y_te, y_pred))
-    mlflow.sklearn.log_model(clf, 'churn_model')
+    mlflow.sklearn.log_model(clf, name='churn_model')
 ```
 
 **Now let's read it in small bites.**
@@ -874,7 +885,7 @@ A brand-new notebook section, kept completely separate from `fraud-detection-v1`
 
 ```python
 mlflow.log_metric('recall_churn', recall_score(y_te, y_pred))
-mlflow.sklearn.log_model(clf, 'churn_model')
+mlflow.sklearn.log_model(clf, name='churn_model')
 ```
 
 Run this script 3–4 times, editing `n_estimators` (try 50, 150, 300) and `max_depth` (try 4, 7,
@@ -925,6 +936,17 @@ Click your top run, open **Artifacts**, confirm `churn_model` is there.
 ---
 
 ### 4.11.4 Register the Winner
+
+> **Before you run this** — `promote_model.py` looks up an experiment that has to exist
+> *already*. If you skipped straight here, you'll hit `No experiment named
+> 'subscriber-churn-v1' yet.` Make sure you've done these first, in order, with `(venv)` showing
+> in your prompt:
+>
+> ```bash
+> source venv/bin/activate                        # if (venv) isn't already showing
+> python usecases/generate_usecase_data.py         # creates data/subscriber_activity.csv
+> python usecases/entertainment_churn_lab.py       # trains runs, creates subscriber-churn-v1
+> ```
 
 **STEP 1 — Run this one line** (from the `chapter-04-mlflow` folder):
 

@@ -24,4 +24,4 @@ with mlflow.start_run():
     mlflow.log_metric('accuracy', accuracy_score(y_te, y_pred))
     mlflow.log_metric('auc', roc_auc_score(y_te, y_proba))
     mlflow.log_metric('recall_high_risk', recall_score(y_te, y_pred))
-    mlflow.sklearn.log_model(clf, 'readmission_model')
+    mlflow.sklearn.log_model(clf, name='readmission_model')

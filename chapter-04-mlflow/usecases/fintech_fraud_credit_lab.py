@@ -20,4 +20,4 @@ with mlflow.start_run():
     mlflow.log_metric('accuracy', accuracy_score(y_te, y_pred))
     mlflow.log_metric('recall', recall_score(y_te, y_pred))
     mlflow.log_metric('f1', f1_score(y_te, y_pred))
-    mlflow.sklearn.log_model(clf, 'fraud_model')
+    mlflow.sklearn.log_model(clf, name='fraud_model')
