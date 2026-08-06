@@ -10,14 +10,21 @@
 ## The big idea (in plain words)
 
 Back in Chapter 02 you wrote your scores into a text file by hand, one line per run. That works,
-but it's easy to forget a line, lose track of *which settings* gave *which score*, or fumble
-when you've run twenty experiments.
+but it's easy to forget a line, mix up *which settings* gave *which score*, or lose track once
+you've run twenty experiments.
 
-Imagine instead a smart lab notebook that writes itself. Every time you run an experiment, it
-quietly records what dials you turned, what scores you got, and even saves the trained model —
-all on its own. Later you open a clean web page, line up all your tries side by side, and pick
-the winner. That self-writing notebook is **MLflow**, and at the end you put your best try on a
-"trophy shelf" (a **model registry**) so it's easy to find and use later.
+Now picture a notebook that writes itself. Every single time you train a model, it quietly jots
+down every dial you turned, every score you got, and it even keeps a copy of the trained model —
+all without you lifting a finger. Later, you open a clean web page, line every attempt up in a
+table, and pick the winner just by looking. That self-writing notebook is called **MLflow**.
+
+Once you've picked a winner, you place it on a "trophy shelf" — MLflow calls this a **model
+registry** — so anyone on your team can find "the best one" later without hunting through files.
+
+Later in this chapter you'll use this exact notebook-and-trophy-shelf trick on three real jobs a
+company might actually pay you to do: catching bank fraud, spotting hospital patients who might
+come back too soon, and figuring out which streaming subscribers are about to quit. Same tool,
+three different problems — that's the whole point of learning it well here.
 
 ## New words (look up anything unfamiliar in the [GLOSSARY](../GLOSSARY.md))
 
@@ -26,6 +33,11 @@ the winner. That self-writing notebook is **MLflow**, and at the end you put you
 - **Hyperparameter** — a dial you set *before* training (like how many questions the tree may ask).
 - **Model registry** — a "trophy shelf" where you store your best model under a name and version.
 - **MLflow UI** — a web page that shows all your tracked runs so you can compare them.
+- **Tag** — a sticky note you can stick on a run to remember something about it later.
+- **Alias** — a nickname (like "Champion" or "Staging") you can stick on a model version so
+  people always know which one to use, without remembering a long file path.
+- **Recall** — out of everything bad that really happened, how much did the model actually catch?
+- **AUC** — how good the model is at ranking risky things above safe things, not just guessing yes/no.
 
 ## What you will build
 
@@ -43,6 +55,9 @@ Registered version: 1
 ```
 
 (Your exact numbers may differ a little — that's normal.)
+
+Later in the chapter, you'll repeat this whole trick two more times on two brand-new problems —
+a hospital dataset and a streaming-service dataset — so the pattern really sinks in.
 
 ---
 
@@ -121,13 +136,18 @@ scores written to a file — MLflow tucked them away for you behind the scenes.
    `--criterion`. These are the **hyperparameters**. If you don't set one, it uses a safe default.
 2. It reads the big table of purchases (`transactions.csv`) from this chapter's own `data` folder.
 3. It picks two clues — the `amount` and the `time` — and the answer to learn, `is_fraud`.
-4. It does the **train/test split**: a big pile to study from, a small pile to quiz with.
-5. `mlflow.start_run()` — It tells MLflow, "Start a new try and keep score," then writes down
-   which dial settings it used so they're never forgotten.
-6. It builds a **decision tree** with your dial settings and lets it study the big pile.
-7. It quizzes the model and records three scores — accuracy, recall, and f1 — into MLflow.
-8. `mlflow.sklearn.log_model(...)` — It even saves the trained model itself into MLflow, then
-   prints the recall score on the screen.
+4. It splits the table into two piles: a big pile to study from, and a small pile to quiz with
+   afterward, so the model is tested on purchases it never saw while learning.
+5. `mlflow.start_run()` — this tells MLflow, "start a new page in the notebook," and everything
+   inside it gets written down automatically. It also writes down which dial settings you used,
+   so they're never forgotten.
+6. It builds a **decision tree** — think of it as a big game of twenty questions the computer
+   plays against each purchase, ending in a "fraud" or "not fraud" guess — using your dial
+   settings, and lets it study the big pile.
+7. It quizzes the model on the small pile and writes three scores into the notebook: accuracy,
+   recall, and f1.
+8. `mlflow.sklearn.log_model(...)` — it saves the whole trained model itself into the notebook,
+   not just its scores, then prints the recall score on the screen.
 
 > **The key difference from Chapter 02:** there you wrote one line to `experiments.txt` by hand.
 > Here MLflow saves the settings, the three scores, *and* the trained model — automatically,
@@ -135,35 +155,33 @@ scores written to a file — MLflow tucked them away for you behind the scenes.
 
 #### Why the file lives in `src/`, and what "with_tracking" means
 
-Putting code in a `src/` folder is a common convention — it keeps the source code separate from
-data, notebooks, and config so the project stays tidy as it grows. The `with_tracking` half of
-the name is the important part: this script is wired up to an **experiment-tracking tool**
-(MLflow here; Weights & Biases is another popular choice). Every run logs its dial settings and
-its resulting scores somewhere you can line them up side by side later — instead of printing to
-the terminal and losing the numbers the moment you close the window.
+Putting code in a `src/` folder is a common habit — it keeps the actual program code separate
+from data, notes, and settings, so the project stays tidy as it grows. The `with_tracking` part
+of the name is the important bit: this script is hooked up to a notebook-keeping tool (MLflow
+here — some teams use a similar tool called Weights & Biases instead). Every run writes its
+dial settings and its scores somewhere you can line them all up later, instead of printing to
+the screen and losing the numbers the second you close the window.
 
 #### The three dials, one at a time
 
-These flags come from `argparse` and feed straight into scikit-learn's `DecisionTreeClassifier`:
-
-| Flag | What it controls |
+| Dial | What it does |
 | --- | --- |
-| `--max_depth` | How many levels of splits the tree may make. Lower = simpler model (risk of **underfitting**); higher = more complex (risk of **overfitting**). Default: `5`. |
-| `--min_samples` | Passed to scikit-learn's `min_samples_split` — the fewest rows a node must hold before it's allowed to split. Higher values force simpler, more generalized trees. Default: `2`. |
-| `--criterion` | The scoring function for split quality: `gini` (the default) or `entropy` (information gain). Different criteria can grow differently shaped trees on the same data. This one uses `nargs='?'`, so writing `--criterion` with no value means `entropy`. |
+| `--max_depth` | How many questions deep the tree is allowed to go before it must guess. A small number keeps things simple but might miss patterns; a big number can get too clever and start memorizing instead of learning. Default: `5`. |
+| `--min_samples` | The smallest group of purchases the tree is allowed to split into two smaller groups. A bigger number forces the tree to stay simpler and not chase tiny, one-off patterns. Default: `2`. |
+| `--criterion` | The rule the tree uses to pick its next question: `gini` (the default) or `entropy`. Both are just different ways of asking "which question splits the good stuff from the bad stuff best?" — they often agree, but not always. Leaving out a value here defaults to `entropy`. |
 
 #### What the three runs are actually comparing
 
-- **`--max_depth 3 --min_samples 2`** — a shallow, restricted tree. Your simplest, most
-  conservative model, and a good baseline.
-- **`--max_depth 8 --min_samples 5`** — a much deeper tree, but requiring more rows per split.
-  It tests whether extra complexity *with a guardrail* actually improves the scores.
-- **`--max_depth 6 --criterion entropy`** — moderate depth, but swaps the split metric from
-  `gini` to `entropy`, to see if information-gain-based splits suit this dataset better.
+- **`--max_depth 3 --min_samples 2`** — a short, simple tree. Your safest, most cautious guess —
+  a good starting point to compare everything else against.
+- **`--max_depth 8 --min_samples 5`** — a much deeper tree, but with a rule that stops it from
+  splitting on tiny groups. This checks whether "going deeper" actually helps, or just adds noise.
+- **`--max_depth 6 --criterion entropy`** — a medium-depth tree, but it picks its questions using
+  the other rule (`entropy` instead of `gini`), to see if that changes anything.
 
-Run together, this is a **manual grid search**: train three variants, then let the tracked
-accuracy, recall, and f1 tell you which combination generalizes best. Nothing is automated yet —
-you're the one picking the combinations — but MLflow makes the comparison honest.
+Running all three and comparing them is basically trying three outfits before you leave the
+house — nothing fancy is automated yet, you're just trying things on purpose and keeping honest
+notes on which one fit best.
 
 ### Step 6 — Open the notebook web page and compare
 
@@ -200,13 +218,14 @@ Registered version: 1
 
 **What `register_best_model.py` does, in plain words** (open it to follow along):
 
-1. It opens a helper that can read all your saved tries from MLflow.
-2. It finds the group of tries named `fraud-detection-v1` (the experiments from Step 5).
-3. It asks MLflow for every try, sorted best-to-worst by **recall**. The first one is the winner.
-4. It grabs the winner's special address (its "run id").
-5. It places that winning model on the **model registry** — the trophy shelf — under the name
-   `FraudDetectionModel`.
-6. It prints the version number the winner got (version 1, then 2, and so on each new time).
+1. It opens a helper that can read every saved run out of MLflow's notebook.
+2. It finds the group of runs named `fraud-detection-v1` (the ones you made in Step 5).
+3. It asks for all of them back, sorted best-to-worst by **recall**. Whichever run is listed
+   first is the winner.
+4. It grabs that winning run's special ID number, like grabbing a claim ticket.
+5. It places that winning model on the trophy shelf under the name `FraudDetectionModel`.
+6. It prints the version number the winner just got — version 1 the first time, then 2, 3, and
+   so on each time you crown a new winner.
 
 ---
 
@@ -320,43 +339,47 @@ Then open `http://127.0.0.1:5000` in your browser. Here's how you'd actually use
 > by the metric that matters, compare, and register the winner — with a paper trail anyone can check.
 > Press **Ctrl+C** in the terminal to stop the dashboard when you're done.
 
-## 4.9–4.11 Guided Labs: The MLflow UI Across Three Industries
+## 4.9–4.11 Three more jobs, the exact same trick
 
-*The three labs below (4.9, 4.10, 4.11) reuse the same MLflow setup from earlier in this
-chapter, but each one is a new, self-contained script under `usecases/`. The fintech lab
-reuses `data/transactions.csv` from Step 4. The healthcare and entertainment labs need two
-extra practice datasets — generate them once, from this chapter's folder, before running
-either of those labs:*
+You've now trained a model, tracked it with MLflow, and crowned a winner — once, on one problem.
+The next three labs take that *exact same trick* and point it at three different real-world
+jobs, so you can see it's not a one-time party trick — it's how the whole industry works:
+
+- **4.9 — a bank**, trying to catch fraud before it costs anyone money.
+- **4.10 — a hospital**, trying to catch patients who might need to come back soon.
+- **4.11 — a streaming service**, trying to catch subscribers who are about to cancel.
+
+Each lab reuses the same MLflow setup from earlier in this chapter, but lives in its own new,
+self-contained script under `usecases/`. The bank lab reuses `data/transactions.csv` from Step 4.
+The hospital and streaming labs need two extra practice tables — make them once, right now, from
+this chapter's folder, before running either of those two labs:
 
 ```bash
 python usecases/generate_usecase_data.py
 ```
 
-*That writes `data/patient_encounters.csv` and `data/subscriber_activity.csv`.*
+**What you should see:** two lines telling you how many rows were made, and two new files land in
+`data/`: `patient_encounters.csv` and `subscriber_activity.csv`.
 
-## 4.9 Guided Lab: Fraud & Credit Risk on the MLflow UI
+## 4.9 Guided Lab: Catching Fraud at a Bank
 
-*You already know how to train a model and watch MLflow write it down. Now
-we're going to do something new: walk into the library MLflow built for us
-and actually use it — the way a fraud analyst would, on a real Monday
-morning. This lab assumes MLflow is already provisioned and `mlflow ui` is
-already running at `127.0.0.1:5000`, exactly as you set up earlier in this
-chapter.*
+*This lab assumes `mlflow ui` is already running at `127.0.0.1:5000`, exactly as you set up
+earlier in this chapter — if you closed it, run `mlflow ui` again from Step 6.*
 
 ---
 
 ### 4.9.1 The Scenario
 
-A bank's fraud team retrains its model constantly, because fraud patterns
-shift every week. Their whole job comes down to one question, asked every
-single morning: **"Of all the real fraud that happened yesterday, how much
-did we actually catch?"** That number has a name — **recall** — and it's the
-number this entire lab is built around.
+A bank's fraud team retrains its model all the time, because the tricks fraudsters use keep
+changing. Their whole job comes down to one question, asked every single morning: **"Of all the
+real fraud that happened yesterday, how much did we actually catch?"** That question has a
+number attached to it — **recall** — and this entire lab is built around getting that number as
+high as possible.
 
 ### 4.9.2 Script: `fintech_fraud_credit_lab.py`
 
-*This is a new file, separate from anything you've already written this
-chapter. Save it as `chapter-04-mlflow/usecases/fintech_fraud_credit_lab.py`.*
+*This file already exists at `usecases/fintech_fraud_credit_lab.py` — open it in VS Code to
+follow along.*
 
 ```python
 import pandas as pd, mlflow, mlflow.sklearn
@@ -394,9 +417,8 @@ X = df[['amount', 'time']]
 y = df['is_fraud']
 ```
 
-You're reading the same transactions table you used earlier in this chapter.
-`X` is the clues — amount and time. `y` is the answer — was it fraud, yes or
-no.
+You're reading the same purchase table from earlier in this chapter. `X` holds the clues — the
+amount and the time of day. `y` holds the answer key — was it fraud, yes or no.
 
 **STEP 2 — Open a fresh notebook page**
 
@@ -405,10 +427,10 @@ mlflow.set_experiment('fraud-detection-v1')
 with mlflow.start_run():
 ```
 
-This is the same experiment folder you already built earlier in Chapter 4 —
-you're simply adding a new page to it.
+This points MLflow at the same notebook section you already built earlier in this chapter — it's
+just adding one more page to it, not starting over.
 
-**STEP 3 — Write down your knobs and grade the quiz**
+**STEP 3 — Write down your dials and grade the quiz**
 
 ```python
 mlflow.log_param('max_depth', 6)
@@ -416,10 +438,11 @@ mlflow.log_metric('recall', recall_score(y_te, y_pred))
 mlflow.sklearn.log_model(clf, 'fraud_model')
 ```
 
-Nothing new here — you've done this before. **Run this script 4—5 times,
-changing `max_depth` to 3, then 6, then 10, then 15.** Each run writes a new
-row. This is the part that makes the next section actually interesting —
-without multiple runs, there's nothing to compare.
+Nothing new here — you've done all three of these lines before. Run this script 4–5 times,
+changing `max_depth` to 3, then 6, then 10, then 15 (edit the number right in the file each time,
+in both the `mlflow.log_param` line and the `DecisionTreeClassifier` line, then rerun). Each run
+adds a new row to the notebook. Without a few different runs to look at, the next part has
+nothing to compare — so don't skip it.
 
 ---
 
@@ -427,36 +450,33 @@ without multiple runs, there's nothing to compare.
 
 **STEP 1 — Confirm you're in the right room**
 
-Open your browser to `127.0.0.1:5000`. Look at the top of the sidebar. It
-must say **"Model training,"** not "GenAI." If it says GenAI, click it to
-switch — you have not broken anything, you just walked into the wrong door.
+Open your browser to `127.0.0.1:5000`. Look at the top of the sidebar. It must say **"Model
+training,"** not "GenAI." If it says GenAI, click it to switch — you haven't broken anything,
+you just walked in the wrong door.
 
 **STEP 2 — Open the training runs table**
 
-Click **Experiments — fraud-detection-v1 — Training runs.** You should see
-one row for every time you ran the script — 4 or 5 rows, if you followed
-Step 3 above.
+Click **Experiments → fraud-detection-v1 → Training runs.** You should see one row for every
+time you ran the script — 4 or 5 rows, if you followed Step 3 above.
 
 **STEP 3 — Choose what you can see**
 
-Click **Columns**, near the top of the table. Turn on `max_depth`,
-`criterion`, `recall`, `accuracy`, `f1`. Turn off anything you don't need —
-this table is a workbench, not a museum; only keep what helps you decide.
+Click **Columns**, near the top of the table. Turn on `max_depth`, `criterion`, `recall`,
+`accuracy`, `f1`. Turn off anything you don't need — this table should be a workbench, not a
+museum; keep only what actually helps you decide.
 
 **STEP 4 — Sort by the number that actually matters**
 
-Click the **recall** column header once or twice until you see **DESC**
-(highest first). Your best fraud-catcher is now sitting in row one, with zero
-math required on your part.
+Click the **recall** column header once or twice until you see **DESC** (biggest first). Your
+best fraud-catcher is now sitting in row one, with zero math required from you.
 
 **STEP 5 — See the pattern, not just the numbers**
 
-Click the toggle near the top of the table that switches from **Table** to
-**Chart.** Choose a parallel-coordinates or scatter chart with `max_depth` on
-one axis and `recall` on the other. Look for the point where the line bends
-downward — that's the run where the tree got too deep, started memorizing
-instead of learning, and recall dropped. You just found overfitting with your
-eyes, not a formula.
+Click the toggle near the top of the table that switches from **Table** to **Chart.** Choose a
+scatter chart with `max_depth` on one axis and `recall` on the other. Look for the point where
+the line bends downward — that's the run where the tree got too deep, started memorizing instead
+of actually learning, and recall dropped. You just spotted **overfitting** with your own eyes,
+no formula needed.
 
 **STEP 6 — Ask the table a direct question**
 
@@ -466,21 +486,18 @@ In the **search bar** above the table, type:
 metrics.recall > 0.85
 ```
 
-Press enter. The table now shows only the runs a real compliance officer
-would consider "good enough to even discuss." This is the exact question a
-fraud team asks itself before promoting anything.
+Press enter. The table now shows only the runs a real compliance officer would even bother
+looking at. This is the exact question a fraud team asks itself before trusting a model.
 
 > **A Detour You Might Land On**
-> If your search bar shows "No runs found" and you're sure you have runs with
-> good recall, double-check you didn't accidentally add a stray space or
-> quote mark. The search syntax is picky — copy it exactly as written above.
+> If your search bar shows "No runs found" and you're sure some runs have good recall, check for
+> a stray space or extra quote mark. The search box is picky — copy the line exactly as written.
 
 **STEP 7 — Open the winner and look inside**
 
-Click directly on the row-one run. Click the **Artifacts** tab. You'll see
-`fraud_model` sitting there — the actual saved file, plus its `MLmodel`
-manifest and environment files. This is what "the model" really is: not a
-mystery, a folder you can open and read.
+Click directly on the row-one run. Click the **Artifacts** tab. You'll see `fraud_model` sitting
+there — the actual saved file, plus a manifest describing it. This is what "the model" really
+is: not a mystery box, just a folder you can open and read.
 
 ---
 
@@ -499,14 +516,28 @@ uri = f'runs:/{best_id}/fraud_model'
 result = mlflow.register_model(uri, 'FraudDetectionModel')
 ```
 
+**What this code is doing, in plain words:**
+
+1. `MlflowClient()` opens the same helper you used back in `register_best_model.py` — a tool
+   that can reach into the notebook and pull runs back out.
+2. `get_experiment_by_name(...)` finds the right notebook section — `fraud-detection-v1`.
+3. `search_runs(...)` asks for every run in that section, sorted best-to-worst by recall.
+4. `runs[0]` grabs the very first one in that sorted list — the winner.
+5. `uri = f'runs:/{best_id}/fraud_model'` builds the winner's "home address" inside MLflow, so
+   the next line knows exactly which saved model to grab.
+6. `mlflow.register_model(...)` places that model on the trophy shelf under the name
+   `FraudDetectionModel`.
+
 ```bash
 mlflow models set-registered-model-alias FraudDetectionModel Champion 1
 ```
 
-Back in the UI, click **Models — FraudDetectionModel.** You'll see the new
-version with a **Champion** badge next to it. Anyone on the team who asks for
-"the Champion fraud model" now gets exactly this one, forever, without ever
-touching a file path.
+This line sticks a nickname — `Champion` — onto version 1 of `FraudDetectionModel`. Think of it
+like putting a gold medal sticker on the winning entry: from now on, anyone who asks for "the
+Champion fraud model" gets exactly this one, without needing to remember a version number.
+
+Back in the UI, click **Models → FraudDetectionModel.** You'll see the new version with a
+**Champion** badge next to it.
 
 ---
 
@@ -520,36 +551,34 @@ touching a file path.
 
 ### 4.9.6 What Top FinTech Companies Track
 
-Fraud teams retrain constantly because fraud patterns shift; the "best" model
-from last week may not be best this week. A real interview question you
-should now be able to answer: *"How would you know a fraud model needs
-retraining?"* — Answer: you'd watch recall drift across new runs, exactly the
-way you just did in this lab.
+Fraud teams retrain constantly because the tricks fraudsters use keep shifting — last week's
+"best" model might not be this week's best. A real interview question you can now answer:
+*"How would you know a fraud model needs retraining?"* — Answer: you'd watch recall drift down
+across new runs, exactly the way you just watched it in this lab.
 
-## 4.10 Guided Lab: Patient Readmission Risk on the MLflow UI
+## 4.10 Guided Lab: Spotting Patients Who Might Come Back Too Soon
 
-*Same tool, same UI, a different kind of pressure. This lab assumes MLflow is
-already provisioned and `mlflow ui` is already running at `127.0.0.1:5000`.*
+*Same tool, same web page, but a different kind of pressure — this time, a hospital. This lab
+assumes `mlflow ui` is already running at `127.0.0.1:5000`.*
 
 ---
 
 ### 4.10.1 The Scenario
 
-A hospital wants to know which patients are likely to be readmitted within 30
-days, so care teams can step in early. The stakes here are different from
-fraud: **every prediction has to be explainable, a year from now, to an
-auditor or a clinical governance board.** MLflow's job in this lab isn't just
-tracking a score — it's building the paper trail a hospital is expected to
-keep.
+A hospital wants to know which patients are likely to be readmitted within 30 days, so care
+teams can step in early and help before it happens again. The stakes here are different from the
+bank: **every guess this model makes has to be explainable, a year from now, to an auditor or a
+hospital review board.** MLflow's job in this lab isn't just remembering a score — it's building
+a paper trail the hospital is required to keep.
 
-The number this whole lab is built around is **AUC** — how well the model
-ranks high-risk patients above low-risk ones — because accuracy alone can
-hide the fact that a model is failing the sickest patients.
+The number this whole lab is built around is called **AUC** — a score for how well the model
+ranks the riskiest patients above the safest ones. Plain accuracy alone can hide the fact that a
+model is quietly failing its sickest patients, so AUC is the fairer measuring stick here.
 
 ### 4.10.2 Script: `healthcare_readmission_lab.py`
 
-*A new file — save it as
-`chapter-04-mlflow/usecases/healthcare_readmission_lab.py`.*
+*This file already exists at `usecases/healthcare_readmission_lab.py` — open it in VS Code to
+follow along.*
 
 ```python
 import pandas as pd, mlflow, mlflow.sklearn
@@ -591,34 +620,34 @@ X = df[['age', 'length_of_stay', 'prior_admissions', 'chronic_conditions']]
 y = df['readmitted_30d']
 ```
 
-Same shape as every dataset this chapter: `X` is the clues, `y` is the answer
-you want predicted.
+Same shape as every dataset in this chapter: `X` holds the clues (age, how many days they stayed,
+how many times they've been admitted before, how many ongoing health conditions they have), and
+`y` holds the answer you want predicted.
 
-**STEP 2 — Tag the run before you do anything else**
+**STEP 2 — Stick a sticky note on the run before doing anything else**
 
 ```python
 mlflow.set_tag('data_snapshot', '2026-Q2')
 mlflow.set_tag('reviewed_by', 'pending')
 ```
 
-This line is new, and it's the single most important habit in this lab. A
-**tag** is a sticky note MLflow attaches to the run, separate from your
-params and metrics. `data_snapshot` records exactly which version of patient
-data trained this model — because six months from now, "which data trained
-this" is a question you will be asked, and "I think it was the March data"
-is not an acceptable answer in healthcare.
+This is new, and it's the single most important habit in this whole lab. A **tag** is a sticky
+note MLflow attaches to a run, separate from its dials and scores. `data_snapshot` writes down
+exactly which batch of patient data trained this model — because six months from now, "which
+data trained this model?" is a question you *will* get asked, and "I think it was the March
+data" is not good enough in a hospital.
 
-**STEP 3 — Build the model and grade it three ways**
+**STEP 3 — Build the model and grade it a few different ways**
 
 ```python
 mlflow.log_metric('auc', roc_auc_score(y_te, y_proba))
 mlflow.log_metric('recall_high_risk', recall_score(y_te, y_pred))
 ```
 
-`roc_auc_score` needs probabilities (`y_proba`), not just yes/no predictions
-— it's asking "how well did the model rank risky patients above safe ones,"
-not just "did it get the final answer right." **Run this script 3—4 times,**
-changing `n_estimators` (try 100, 200, 300) and `max_depth` (try 5, 8, 12).
+`roc_auc_score` needs the model's *confidence* numbers (`y_proba`), not just its final yes/no
+guesses — it's really asking "how well did the model rank risky patients above safe ones?"
+rather than just "did it get the final answer right?" Run this script 3–4 times, editing
+`n_estimators` (try 100, 200, 300) and `max_depth` (try 5, 8, 12) directly in the file each time.
 
 ---
 
@@ -630,19 +659,18 @@ changing `n_estimators` (try 100, 200, 300) and `max_depth` (try 5, 8, 12).
 
 **STEP 2 — Open the table**
 
-**Experiments — readmission-risk-v1 — Training runs.**
+**Experiments → readmission-risk-v1 → Training runs.**
 
 **STEP 3 — Turn on the columns that matter here**
 
-Click **Columns**. This time, turn on `data_snapshot` and `reviewed_by`
-alongside `auc` and `recall_high_risk`. **Tag columns matter as much as
-metric columns in this lab** — that's the healthcare-specific lesson.
+Click **Columns**. This time, turn on `data_snapshot` and `reviewed_by` alongside `auc` and
+`recall_high_risk`. In this lab, your sticky-note columns matter just as much as your score
+columns — that's the healthcare-specific lesson.
 
 **STEP 4 — Sort by AUC, not accuracy**
 
-Click the **auc** column header to sort **DESC**. The run best at correctly
-ranking high-risk patients rises to the top — this is a different sort than
-the fraud lab, on purpose.
+Click the **auc** column header to sort **DESC**. The run that's best at correctly ranking
+high-risk patients rises to the top — a different sort than the bank lab, on purpose.
 
 **STEP 5 — Ask a compliance question**
 
@@ -652,26 +680,24 @@ In the search bar, type:
 tags.data_snapshot = '2026-Q2'
 ```
 
-This isolates every run trained on one specific data version — exactly the
-question an auditor asks: "show me every model ever built on this data."
+This shows you every run trained on one specific batch of data — exactly the question an
+auditor would ask: "show me every model ever built on this data."
 
 > **A Detour You Might Land On**
-> Tag searches use exact matching with quotes around the value. If you typed
-> `tags.data_snapshot = 2026-Q2` without quotes, the search will fail
-> silently or error. Quotes are not optional here.
+> Tag searches need quotes around the value. If you typed `tags.data_snapshot = 2026-Q2` without
+> quotes, the search fails silently or errors out. The quotes are not optional.
 
 **STEP 6 — Look at the chart view for a health check**
 
-Switch to **Chart**, plot `n_estimators` against `auc`. If the line flattens
-out after 200, that's your sign you've hit diminishing returns — more trees
-past that point cost compute without buying accuracy.
+Switch to **Chart**, plot `n_estimators` against `auc`. If the line flattens out after 200,
+that's your sign you've hit diminishing returns — more trees past that point cost more compute
+without buying you any more accuracy.
 
 **STEP 7 — Open the artifacts**
 
-Click into the top run, open **Artifacts**, and confirm `readmission_model`
-is sitting there with its full manifest. This is what you'd hand to a
-clinical reviewer alongside the prediction — not just a score, the whole
-paper trail behind it.
+Click into the top run, open **Artifacts**, and confirm `readmission_model` is sitting there
+with its full manifest. This is what you'd hand to a clinical reviewer alongside a prediction —
+not just a score, the whole paper trail behind it.
 
 ---
 
@@ -690,15 +716,18 @@ uri = f'runs:/{best_id}/readmission_model'
 result = mlflow.register_model(uri, 'ReadmissionRiskModel')
 ```
 
+This is the exact same five-step pattern as the fraud lab's register code — find the notebook
+section, ask for every run sorted best-to-worst (this time by `auc`), grab the winner's address,
+and place it on the trophy shelf, here named `ReadmissionRiskModel`.
+
 ```bash
 mlflow models set-registered-model-alias ReadmissionRiskModel Staging 1
 ```
 
-Notice this alias says **Staging**, not Champion. In the **Models** tab,
-you'll see this version marked as staged — waiting on a clinician panel to
-review sample predictions before anyone promotes it further. That pause,
-made visible right in the UI, is the entire point of this lab: nothing in
-healthcare goes live on "trust me."
+Notice this nickname says **Staging**, not Champion. In the **Models** tab, you'll see this
+version marked as staged — waiting on a clinician panel to review sample predictions before
+anyone promotes it further. That pause, made visible right in the web page, is the whole point
+of this lab: nothing in healthcare goes live just because a computer says "trust me."
 
 ---
 
@@ -711,33 +740,30 @@ healthcare goes live on "trust me."
 
 ### 4.10.6 What Top Healthcare AI Teams Track
 
-Tagging every run with its exact data snapshot isn't optional polish — in
-regulated healthcare work, it's often close to a requirement. A real
-interview question you can now answer: *"How would you make sure a clinician
-signs off before a risk model goes live?"* — Answer: exactly the alias-based
-staging gate you just built.
+Tagging every run with its exact data snapshot isn't extra polish — in regulated healthcare
+work, it's often close to a requirement. A real interview question you can now answer: *"How
+would you make sure a clinician signs off before a risk model goes live?"* — Answer: exactly the
+alias-based staging gate you just built.
 
-## 4.11 Guided Lab: Subscriber Churn on the MLflow UI
+## 4.11 Guided Lab: Catching Subscribers About to Quit
 
-*Third industry, same habit. This lab assumes MLflow is already provisioned
-and `mlflow ui` is already running at `127.0.0.1:5000`.*
+*Third job, same exact habit — this time, a streaming service. This lab assumes `mlflow ui` is
+already running at `127.0.0.1:5000`.*
 
 ---
 
 ### 4.11.1 The Scenario
 
-A streaming platform — think Netflix, Peacock, any subscription service —
-wants to know which subscribers are about to cancel, early enough to try to
-keep them. Every week the viewing data shifts, so this experiment gets
-retrained constantly, same as the fraud model back in section 4.9. The number
-this lab is built around is **recall on the "about to cancel" group** —
-missing a churn-risk subscriber means losing them with zero chance to step
-in.
+A streaming platform — think Netflix, Peacock, any subscription service — wants to know which
+subscribers are about to cancel, early enough to try to keep them around. Viewing habits shift
+every week, so this model gets retrained all the time, just like the fraud model back in 4.9.
+The number this lab is built around is **recall on the "about to cancel" group** — missing a
+subscriber who's about to leave means losing them with zero chance to step in and help.
 
 ### 4.11.2 Script: `entertainment_churn_lab.py`
 
-*A new file — save it as
-`chapter-04-mlflow/usecases/entertainment_churn_lab.py`.*
+*This file already exists at `usecases/entertainment_churn_lab.py` — open it in VS Code to
+follow along.*
 
 ```python
 import pandas as pd, mlflow, mlflow.sklearn
@@ -778,9 +804,9 @@ X = df[['avg_watch_hours_week', 'days_since_last_login',
 y = df['churned_next_30d']
 ```
 
-The clues this time: how much someone watches, how long since they logged
-in, how many shows they finished, how many support tickets they filed. The
-answer to predict: will they cancel in the next 30 days.
+The clues this time: how much someone watches per week, how many days since they last logged
+in, how many shows they've finished in the last month, and how many support tickets they filed.
+The answer to predict: will they cancel in the next 30 days.
 
 **STEP 2 — Open the experiment**
 
@@ -789,8 +815,8 @@ mlflow.set_experiment('subscriber-churn-v1')
 with mlflow.start_run():
 ```
 
-A brand-new experiment folder, separate from `fraud-detection-v1` and
-`readmission-risk-v1` — each business problem gets its own folder, always.
+A brand-new notebook section, kept completely separate from `fraud-detection-v1` and
+`readmission-risk-v1` — every different business problem gets its own section, always.
 
 **STEP 3 — Grade it and save it**
 
@@ -799,8 +825,8 @@ mlflow.log_metric('recall_churn', recall_score(y_te, y_pred))
 mlflow.sklearn.log_model(clf, 'churn_model')
 ```
 
-**Run this script 3—4 times,** varying `n_estimators` (try 50, 150, 300) and
-`max_depth` (try 4, 7, 10).
+Run this script 3–4 times, editing `n_estimators` (try 50, 150, 300) and `max_depth` (try 4, 7,
+10) directly in the file each time.
 
 ---
 
@@ -812,37 +838,33 @@ mlflow.sklearn.log_model(clf, 'churn_model')
 
 **STEP 2 — Open the table**
 
-**Experiments — subscriber-churn-v1 — Training runs.**
+**Experiments → subscriber-churn-v1 → Training runs.**
 
 **STEP 3 — Choose your columns**
 
-Click **Columns**, turn on `n_estimators`, `max_depth`, `auc`,
-`recall_churn`.
+Click **Columns**, turn on `n_estimators`, `max_depth`, `auc`, `recall_churn`.
 
 **STEP 4 — Sort by the number that matters here**
 
-Click **recall_churn** to sort **DESC** — same instinct as fraud in 4.9:
-missing a real churner costs more than a wasted retention email to someone
-who was never leaving.
+Click **recall_churn** to sort **DESC** — same instinct as fraud back in 4.9: missing a real
+about-to-quit subscriber costs more than sending one extra "please stay" email to someone who
+was never leaving.
 
 **STEP 5 — Find the diminishing-returns point**
 
-Switch to **Chart**, plot `n_estimators` against `auc` as a scatter. Look for
-where the curve goes flat — that's the point where adding more trees stops
-helping. A real platform team uses this exact chart to decide how much
-compute a retraining run is actually worth.
+Switch to **Chart**, plot `n_estimators` against `auc` as a scatter. Look for where the curve
+goes flat — that's the point where adding more trees stops helping. A real platform team uses
+this exact chart to decide how much compute a retraining run is actually worth paying for.
 
 **STEP 6 — Compare two runs directly**
 
-Select the checkboxes next to your top two runs in the table, then click
-**Compare.** MLflow lays their parameters and metrics side by side — this is
-how you'd explain to a teammate, in one screenshot, exactly why one run beat
-the other.
+Select the checkboxes next to your top two runs in the table, then click **Compare.** MLflow
+lays their dials and scores side by side — this is how you'd explain to a teammate, in one
+screenshot, exactly why one run beat the other.
 
 > **A Detour You Might Land On**
-> If Compare shows blank charts, make sure you selected at least two runs
-> with the checkboxes first — Compare needs multiple runs selected before it
-> has anything to show.
+> If Compare shows blank charts, make sure you selected at least two runs with the checkboxes
+> first — Compare needs more than one run picked before it has anything to show.
 
 **STEP 7 — Open the artifacts**
 
@@ -865,17 +887,24 @@ uri = f'runs:/{best_id}/churn_model'
 result = mlflow.register_model(uri, 'ChurnRiskModel')
 ```
 
+Same five-step recipe a third time: open the helper, find the notebook section, ask for every
+run sorted best-to-worst (this time by `recall_churn`), grab the winner's address, and place it
+on the trophy shelf as `ChurnRiskModel`.
+
 ```bash
 mlflow models set-registered-model-alias ChurnRiskModel Champion 1
 ```
+
+Same nickname trick as the fraud lab — `Champion` now points straight at version 1, so anyone
+asking for "the Champion churn model" always gets this exact one.
 
 ---
 
 ### 4.11.5 One Step Further: A Second System, Same Habit
 
-Streaming platforms run a second model alongside churn — a **recommender**,
-deciding what to show you next. You wouldn't train it the same way, but you'd
-log it into MLflow the exact same way, just with different metrics:
+Streaming platforms run a second model alongside churn — a **recommender**, deciding what to
+show you next. You wouldn't train it the same way, but you'd log it into MLflow the exact same
+way, just with different scores to track:
 
 ```python
 mlflow.set_experiment('content-recommender-v1')
@@ -885,10 +914,16 @@ with mlflow.start_run():
     mlflow.log_metric('ndcg_at_10', 0.41)        # were the best ranked highest?
 ```
 
-Back in the UI, you'd sort **Training runs** by `ndcg_at_10 DESC` — same
-click, same table, completely different metric. That's the real lesson of
-this whole chapter: **the habit never changes. Only your judgment about what
-to track does.**
+**What this code is doing, in plain words:** it opens a brand-new notebook section named
+`content-recommender-v1`, writes down one dial (`embedding_dim`, a setting for how the
+recommender represents each show internally), then writes down two new kinds of scores instead
+of recall or AUC — `precision_at_10` (out of the top 10 shows suggested, what fraction did the
+person actually watch?) and `ndcg_at_10` (were the *very best* suggestions placed near the top of
+the list, or buried?).
+
+Back in the UI, you'd sort **Training runs** by `ndcg_at_10 DESC` — same click, same table,
+completely different score. That's the real lesson of this whole chapter: **the habit never
+changes. Only your judgment about what to track does.**
 
 ---
 
@@ -902,12 +937,12 @@ to track does.**
 
 ### 4.11.7 What Top Streaming Companies Track
 
-Recommendation quality is measured with precision@k, recall@k, and NDCG@k —
-not accuracy, which doesn't even apply to a ranked list of suggestions. A
-real interview question you can now answer: *"Why wouldn't you use accuracy
-to evaluate a recommender?"* — Answer: accuracy needs a single right answer;
-a recommendation is a ranked list, so you need a metric that rewards putting
-the best matches near the top, which is exactly what NDCG measures.
+Recommendation quality gets measured with precision@k, recall@k, and NDCG@k — not accuracy,
+which doesn't even make sense for a ranked list of suggestions. A real interview question you
+can now answer: *"Why wouldn't you use accuracy to evaluate a recommender?"* — Answer: accuracy
+needs one single right answer to check against; a recommendation is a whole ranked list, so you
+need a score that rewards putting the best matches near the top — which is exactly what NDCG
+does.
 
 ## What you just learned
 
@@ -915,6 +950,10 @@ the best matches near the top, which is exactly what NDCG measures.
 - **Hyperparameters** are the dials you set before training; MLflow records which ones you used.
 - The **MLflow UI** lets you compare many runs side by side in your browser.
 - A **model registry** is a trophy shelf for your best model, with a clear name and version.
+- **Tags** are sticky notes on a run, and **aliases** (like Champion or Staging) are nicknames
+  stuck on a model version — both make a run or model easy to find and trust later.
+- The same notebook-and-trophy-shelf habit works on any problem — you just proved it three times,
+  on a bank, a hospital, and a streaming service.
 - This replaces the hand-written log file from Chapter 02 — same idea, far less effort and far
   fewer mistakes.
 
