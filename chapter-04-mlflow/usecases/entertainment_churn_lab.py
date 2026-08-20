@@ -1,9 +1,15 @@
 import pandas as pd, mlflow, mlflow.sklearn
+import os, subprocess, sys
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import roc_auc_score, recall_score, accuracy_score
 
-df = pd.read_csv('data/subscriber_activity.csv')
+HERE = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(HERE, '..', 'data', 'subscriber_activity.csv')
+if not os.path.exists(DATA_PATH):
+    subprocess.run([sys.executable, os.path.join(HERE, 'generate_usecase_data.py')], check=True)
+
+df = pd.read_csv(DATA_PATH)
 X = df[['avg_watch_hours_week', 'days_since_last_login',
         'titles_completed_30d', 'support_tickets_90d']]
 y = df['churned_next_30d']

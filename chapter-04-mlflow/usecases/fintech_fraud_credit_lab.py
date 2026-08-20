@@ -1,9 +1,15 @@
 import pandas as pd, mlflow, mlflow.sklearn
+import os, subprocess, sys
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.metrics import accuracy_score, recall_score, f1_score
 
-df = pd.read_csv('data/transactions.csv')
+HERE = os.path.dirname(os.path.abspath(__file__))
+DATA_PATH = os.path.join(HERE, '..', 'data', 'transactions.csv')
+if not os.path.exists(DATA_PATH):
+    subprocess.run([sys.executable, os.path.join(HERE, '..', 'src', 'generate_data.py')], check=True)
+
+df = pd.read_csv(DATA_PATH)
 X = df[['amount', 'time']]
 y = df['is_fraud']
 X_tr, X_te, y_tr, y_te = train_test_split(X, y, test_size=0.2, random_state=42)

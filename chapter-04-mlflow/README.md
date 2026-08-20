@@ -1,63 +1,64 @@
 # Chapter 04 — Keep a tidy notebook of your experiments
 
-> Matches **Chapter 04** in the book. The same training as before, but the notebook keeps itself.
-> The runnable scripts for this chapter are in this folder.
+> Matches **Chapter 04** in the book. Same training as before, but now the notebook writes itself.
+> The scripts for this chapter are in this folder.
 
 **Labels:** 💻 Runs free on your laptop
 
 ---
 
-## The big idea (in plain words)
+## The big idea
 
-Back in Chapter 02 you wrote your scores into a text file by hand, one line per run. That works,
-but it's easy to forget a line, mix up *which settings* gave *which score*, or lose track once
-you've run twenty experiments.
+Back in Chapter 02, you wrote your scores into a text file by hand, one line per run. That
+works, but it's easy to forget a line, mix up which settings gave which score, or lose track
+once you've run twenty experiments.
 
-Now picture a notebook that writes itself. Every single time you train a model, it quietly jots
-down every dial you turned, every score you got, and it even keeps a copy of the trained model —
-all without you lifting a finger. Later, you open a clean web page, line every attempt up in a
+Now imagine a notebook that writes itself. Every time you train a model, it quietly writes down
+every setting you used, every score you got, and even saves a copy of the trained model. You
+don't have to do anything. Later, you open a clean web page, see every attempt lined up in a
 table, and pick the winner just by looking. That self-writing notebook is called **MLflow**.
 
-Once you've picked a winner, you place it on a "trophy shelf" — MLflow calls this a **model
-registry** — so anyone on your team can find "the best one" later without hunting through files.
+Once you've picked a winner, you put it on a "trophy shelf." MLflow calls this a **model
+registry**. It lets anyone on your team find "the best one" later without digging through files.
 
-Later in this chapter you'll use this exact notebook-and-trophy-shelf trick on three real jobs a
-company might actually pay you to do: catching bank fraud, spotting hospital patients who might
-come back too soon, and figuring out which streaming subscribers are about to quit. Same tool,
-three different problems — that's the whole point of learning it well here.
+Later in this chapter, you'll use this same trick on three real jobs a company might pay you to
+do: catching bank fraud, spotting hospital patients who might come back too soon, and finding
+streaming subscribers who are about to quit. Same tool, three different problems. That's the
+whole point of learning it well here.
 
 ## New words (look up anything unfamiliar in the [GLOSSARY](../GLOSSARY.md))
 
 - **MLflow** — a tool that automatically keeps a tidy notebook of every experiment you run.
 - **Experiment tracking** — a fancy way of saying "keeping score" of your training runs.
-- **Hyperparameter** — a dial you set *before* training (like how many questions the tree may ask).
+- **Hyperparameter** — a setting you choose *before* training (like how many questions the tree may ask).
 - **Model registry** — a "trophy shelf" where you store your best model under a name and version.
 - **MLflow UI** — a web page that shows all your tracked runs so you can compare them.
-- **Tag** — a sticky note you can stick on a run to remember something about it later.
-- **Alias** — a nickname (like "Champion" or "Staging") you can stick on a model version so
-  people always know which one to use, without remembering a long file path.
+- **Tag** — a sticky note you stick on a run to remember something about it later.
+- **Alias** — a nickname (like "Champion" or "Staging") you stick on a model version, so people
+  always know which one to use without remembering a long file path.
 - **Recall** — out of everything bad that really happened, how much did the model actually catch?
-- **AUC** — how good the model is at ranking risky things above safe things, not just guessing yes/no.
+- **AUC** — how good the model is at ranking risky things above safe things, not just guessing yes or no.
 
 ## What you will build
 
-You'll train the same fraud model three times with different dial settings, let MLflow record
-every run, compare them in a web page, then crown the best one. Each run prints a single line:
+You'll train the same fraud model three times, each time with different settings. MLflow
+records every run. You'll compare them in a web page, then pick the best one. Each run prints
+one line:
 
 ```
 Recall: 0.800
 ```
 
-And after crowning the winner:
+And after you crown the winner:
 
 ```
 Registered version: 1
 ```
 
-(Your exact numbers may differ a little — that's normal.)
+(Your exact numbers may look a little different. That's normal.)
 
-Later in the chapter, you'll repeat this whole trick two more times on two brand-new problems —
-a hospital dataset and a streaming-service dataset — so the pattern really sinks in.
+Later in the chapter, you'll do this whole thing two more times, on two brand-new problems: a
+hospital dataset and a streaming-service dataset. Repeating it helps the pattern stick.
 
 ---
 
@@ -70,13 +71,13 @@ cd chapter-04-mlflow
 ```
 
 **What you should see:** your prompt shows you're inside `chapter-04-mlflow`. Type `ls` and you
-should see a `src` folder and a `README.md`. The scripts live inside `src` — run `ls src`
-and you'll see `generate_data.py`, `train_with_tracking.py`, `register_best_model.py`, and
+should see a `src` folder and a `README.md`. The scripts live inside `src`. Run `ls src` and
+you'll see `generate_data.py`, `train_with_tracking.py`, `register_best_model.py`, and
 `promote_model.py`.
 
-> You will run every command from *this* folder (`chapter-04-mlflow`), pointing at the scripts
-> with `src/` in front — like `python src/generate_data.py`. Staying in one folder keeps your
-> data and your saved experiments together in the same place.
+> Run every command from *this* folder (`chapter-04-mlflow`), and point at the scripts with
+> `src/` in front — like `python src/generate_data.py`. Staying in one folder keeps your data
+> and your saved experiments together in the same place.
 
 ### Step 2 — Make a clean toolbox just for this project
 
@@ -104,22 +105,22 @@ Make the table now:
 python src/generate_data.py
 ```
 
-**What you should see:** `Generated 1000 rows, 18 fraud`. A new file `data/transactions.csv`
-now sits right here in this chapter, and the training script will read it.
+**What you should see:** `Generated 1000 rows, 18 fraud`. A new file, `data/transactions.csv`,
+now sits in this chapter's folder. The training script will read it.
 
 **What `generate_data.py` does, in plain words** (open it in VS Code to follow along):
 
 1. It invents 1,000 pretend purchases, each with an `amount` and a `time` of day.
-2. It marks a purchase as fraud (`is_fraud = 1`) when it's both big and in the dead of night —
-   over 500 dollars *and* before 5 a.m. That comes out to 18 fakes out of 1,000.
+2. It marks a purchase as fraud (`is_fraud = 1`) when it's both big and late at night — over
+   500 dollars *and* before 5 a.m. That comes out to 18 fakes out of 1,000.
 3. It saves the whole table to `data/transactions.csv` for the next step to read.
 
-> The same random seed is baked in, so you'll get the exact same 1,000 rows every time — handy
-> when you want your results to match the book.
+> The same random seed is baked in, so you get the exact same 1,000 rows every time. That's
+> handy when you want your results to match the book.
 
-### Step 5 — Run three experiments with different dials
+### Step 5 — Run three experiments with different settings
 
-Each command trains the model once with different **hyperparameters** (the dials). MLflow
+Each command trains the model once, using different **hyperparameters** (settings). MLflow
 records each run automatically. Run them one at a time:
 
 ```bash
@@ -128,61 +129,60 @@ python src/train_with_tracking.py --max_depth 8 --min_samples 5
 python src/train_with_tracking.py --max_depth 6 --criterion entropy
 ```
 
-**What you should see:** each command prints one line like `Recall: 0.800`. You won't see the
-scores written to a file — MLflow tucked them away for you behind the scenes.
+**What you should see:** each command prints one line, like `Recall: 0.800`. You won't see the
+scores written to a file — MLflow saved them for you behind the scenes.
 
 **What `train_with_tracking.py` does, in plain words** (open it in VS Code to follow along):
 
-1. It opens a list of dials you can set before training: `--max_depth`, `--min_samples`, and
-   `--criterion`. These are the **hyperparameters**. If you don't set one, it uses a safe default.
-2. It reads the big table of purchases (`transactions.csv`) from this chapter's own `data` folder.
+1. It offers a list of settings you can choose before training: `--max_depth`, `--min_samples`,
+   and `--criterion`. These are the **hyperparameters**. If you skip one, it uses a safe default.
+2. It reads the big table of purchases (`transactions.csv`) from this chapter's `data` folder.
 3. It picks two clues — the `amount` and the `time` — and the answer to learn, `is_fraud`.
-4. It splits the table into two piles: a big pile to study from, and a small pile to quiz with
-   afterward, so the model is tested on purchases it never saw while learning.
-5. `mlflow.start_run()` — this tells MLflow, "start a new page in the notebook," and everything
-   inside it gets written down automatically. It also writes down which dial settings you used,
-   so they're never forgotten.
+4. It splits the table into two piles: a big pile to learn from, and a small pile to quiz with
+   afterward. That way the model is tested on purchases it never saw while learning.
+5. `mlflow.start_run()` tells MLflow "start a new page in the notebook." Everything that
+   happens next gets written down automatically, including which settings you used.
 6. It builds a **decision tree** — think of it as a big game of twenty questions the computer
-   plays against each purchase, ending in a "fraud" or "not fraud" guess — using your dial
-   settings, and lets it study the big pile.
+   plays against each purchase, ending in a "fraud" or "not fraud" guess — using the settings
+   you chose, and lets it learn from the big pile.
 7. It quizzes the model on the small pile and writes three scores into the notebook: accuracy,
    recall, and f1.
-8. `mlflow.sklearn.log_model(...)` — it saves the whole trained model itself into the notebook,
-   not just its scores, then prints the recall score on the screen.
+8. `mlflow.sklearn.log_model(...)` saves the whole trained model into the notebook, not just its
+   scores, then prints the recall score on the screen.
 
-> **The key difference from Chapter 02:** there you wrote one line to `experiments.txt` by hand.
-> Here MLflow saves the settings, the three scores, *and* the trained model — automatically,
-> every run. No more hand-written log.
+> **The key difference from Chapter 02:** back then, you wrote one line to `experiments.txt` by
+> hand. Here, MLflow saves the settings, the three scores, *and* the trained model —
+> automatically, every run. No more hand-written log.
 
 #### Why the file lives in `src/`, and what "with_tracking" means
 
-Putting code in a `src/` folder is a common habit — it keeps the actual program code separate
+Putting code in a `src/` folder is a common habit. It keeps the actual program code separate
 from data, notes, and settings, so the project stays tidy as it grows. The `with_tracking` part
-of the name is the important bit: this script is hooked up to a notebook-keeping tool (MLflow
-here — some teams use a similar tool called Weights & Biases instead). Every run writes its
-dial settings and its scores somewhere you can line them all up later, instead of printing to
-the screen and losing the numbers the second you close the window.
+of the name is the important bit: this script is connected to a notebook-keeping tool (MLflow
+here — some teams use a similar tool called Weights & Biases). Every run writes its settings and
+scores somewhere you can compare later, instead of printing to the screen and losing the numbers
+the moment you close the window.
 
-#### The three dials, one at a time
+#### The three settings, one at a time
 
-| Dial | What it does |
+| Setting | What it does |
 | --- | --- |
-| `--max_depth` | How many questions deep the tree is allowed to go before it must guess. A small number keeps things simple but might miss patterns; a big number can get too clever and start memorizing instead of learning. Default: `5`. |
-| `--min_samples` | The smallest group of purchases the tree is allowed to split into two smaller groups. A bigger number forces the tree to stay simpler and not chase tiny, one-off patterns. Default: `2`. |
-| `--criterion` | The rule the tree uses to pick its next question: `gini` (the default) or `entropy`. Both are just different ways of asking "which question splits the good stuff from the bad stuff best?" — they often agree, but not always. Leaving out a value here defaults to `entropy`. |
+| `--max_depth` | How many questions deep the tree can go before it must guess. A small number keeps things simple but might miss patterns. A big number can get too clever and start memorizing instead of learning. Default: `5`. |
+| `--min_samples` | The smallest group of purchases the tree is allowed to split into two smaller groups. A bigger number keeps the tree simpler and stops it from chasing tiny, one-off patterns. Default: `2`. |
+| `--criterion` | The rule the tree uses to pick its next question: `gini` (the default) or `entropy`. Both are different ways of asking "which question best separates the good stuff from the bad stuff?" They usually agree, but not always. Leaving this out defaults to `entropy` in this chapter's examples. |
 
 #### What the three runs are actually comparing
 
-- **`--max_depth 3 --min_samples 2`** — a short, simple tree. Your safest, most cautious guess —
-  a good starting point to compare everything else against.
+- **`--max_depth 3 --min_samples 2`** — a short, simple tree. Your safest, most cautious guess,
+  and a good baseline to compare everything else against.
 - **`--max_depth 8 --min_samples 5`** — a much deeper tree, but with a rule that stops it from
-  splitting on tiny groups. This checks whether "going deeper" actually helps, or just adds noise.
-- **`--max_depth 6 --criterion entropy`** — a medium-depth tree, but it picks its questions using
-  the other rule (`entropy` instead of `gini`), to see if that changes anything.
+  splitting on tiny groups. This checks whether going deeper actually helps, or just adds noise.
+- **`--max_depth 6 --criterion entropy`** — a medium-depth tree that picks its questions with the
+  other rule (`entropy` instead of `gini`), to see if that changes anything.
 
-Running all three and comparing them is basically trying three outfits before you leave the
-house — nothing fancy is automated yet, you're just trying things on purpose and keeping honest
-notes on which one fit best.
+Running all three and comparing them is like trying on three outfits before you leave the house.
+Nothing fancy is automated yet — you're just trying things on purpose and keeping honest notes on
+which one fits best.
 
 ### Step 6 — Open the notebook web page and compare
 
@@ -196,12 +196,12 @@ mlflow ui
 your web browser. You'll see your three runs listed.
 
 - Tick the boxes next to all three runs, then click **Compare**.
-- Look at the `recall` column to see which dial settings caught the most fraud.
+- Look at the `recall` column to see which settings caught the most fraud.
 
 When you're done looking, go back to the terminal and press **Ctrl+C** to stop the web page.
 
 > The web page is just a friendly view of the notebook MLflow has been keeping. Nothing here is
-> online or costs money — it's all running on your own computer at the `127.0.0.1` address.
+> online or costs money — it all runs on your own computer, at the `127.0.0.1` address.
 
 ### Step 7 — Put the winner on the trophy shelf
 
@@ -226,7 +226,7 @@ Registered version: 1
 4. It grabs that winning run's special ID number, like grabbing a claim ticket.
 5. It places that winning model on the trophy shelf under the name `FraudDetectionModel`.
 6. It prints the version number the winner just got — version 1 the first time, then 2, 3, and
-   so on each time you crown a new winner.
+   so on, each time you crown a new winner.
 
 ---
 
@@ -234,12 +234,13 @@ Registered version: 1
 
 - 🔧 **Add a fourth try.** Run `python src/train_with_tracking.py --max_depth 10 --min_samples 10`,
   then refresh the MLflow web page. A new run should appear.
-- 🔧 **Change the deepest dial.** Try `--max_depth 1`. In the web page, does its recall drop
+- 🔧 **Change the deepest setting.** Try `--max_depth 1`. In the web page, does its recall drop
   compared with the deeper trees?
 - 🔧 **Crown a new winner.** After adding more tries, run `python src/register_best_model.py` again.
   Watch the version number climb to `2`, `3`, and so on.
 - 🔧 **Spot the columns.** In the Compare view, find the `max_depth`, `min_samples`, and
-  `recall` columns side by side. This is exactly the picture your hand-written log could never show clearly.
+  `recall` columns side by side. This is exactly the picture a hand-written log could never show
+  as clearly.
 
 ## If something breaks
 
@@ -247,10 +248,10 @@ Registered version: 1
   Run Step 4 (`python src/generate_data.py`) first.
 - **`No module named mlflow`** → Your toolbox isn't on, or MLflow isn't installed. Confirm your
   prompt shows `(venv)`, then redo Step 3 and Step 4.
-- **`mlflow: command not found`** → Same fix: make sure `(venv)` is on and you ran the
-  `pip install` from Step 4.
+- **`mlflow: command not found`** → Same fix: make sure `(venv)` is on, and that you ran the
+  `pip install` from Step 3.
 - **The web page won't open / "address already in use"** → Another MLflow page may still be
-  running. Find the old terminal and press **Ctrl+C**, or just close that terminal, then try again.
+  running. Find the old terminal and press **Ctrl+C**, or close that terminal, then try again.
 - **`register_best_model.py` errors about no runs** → You haven't trained anything yet. Run the
   experiments in Step 5 first.
 - **`promote_model.py` says "No experiment named ... yet"** → You're either in the wrong folder,
@@ -260,14 +261,14 @@ Registered version: 1
   MLflow. Nicknames can only be set from Python, which is exactly what `src/promote_model.py`
   does for you. Use the one-line command from section 4.9.4 instead.
 - **A yellow `WARNING ... registering model based on models:/...` line appears** → Harmless.
-  Newer MLflow versions store models in a slightly different spot and this note just says it
+  Newer MLflow versions store models in a slightly different spot, and this note just says it
   found yours. If the last three lines printed, it worked.
 
 ### Nuclear option — rebuild your toolbox from scratch
 
 If your `venv` gets into a weird state (wrong Python version, half-installed packages, strange
-import errors that survive a reinstall), the cleanest fix is to throw the whole `venv` away and
-build a fresh one. This deactivates the broken environment, deletes it, recreates it on **Python
+import errors that won't go away), the cleanest fix is to throw the whole `venv` away and build
+a fresh one. This turns off the broken environment, deletes it, builds a new one on **Python
 3.12**, upgrades `pip`, and reinstalls the three packages this chapter needs.
 
 **Windows (PowerShell):**
@@ -313,14 +314,14 @@ python -m pip install mlflow pandas scikit-learn
 | Reinstall the packages | `python -m pip install mlflow pandas scikit-learn` | `python -m pip install mlflow pandas scikit-learn` | Puts MLflow and its friends back into the fresh toolbox. |
 
 > **Why Python 3.12?** If `py -3.12` (Windows) or `python3.12` (macOS/Linux) says it can't find
-> that version, install Python 3.12 first, or swap in whichever 3.11–3.12 you have. Very new or
-> very old Python versions sometimes trip up MLflow's dependencies, so pinning a known-good one
-> removes a whole class of install headaches.
+> that version, install Python 3.12 first, or use whichever 3.11–3.12 version you have. Very new
+> or very old Python versions sometimes trip up MLflow's dependencies, so pinning a known-good
+> one avoids a whole class of install headaches.
 
 ## A real use case — the MLflow UI dashboard
 
-Everything above records your runs; the **MLflow UI** is where that record pays off. Picture a
-teammate asking: *"Which fraud model should we ship — and can you prove it's the best one?"*
+Everything above records your runs. The **MLflow UI** is where that record pays off. Picture a
+teammate asking: *"Which fraud model should we ship, and can you prove it's the best one?"*
 Instead of digging through notes, you open the dashboard and answer in about a minute.
 
 Start it from this chapter's folder (with `(venv)` active):
@@ -333,27 +334,28 @@ Then open `http://127.0.0.1:5000` in your browser. Here's how you'd actually use
 
 1. **Line up the contenders.** Click into the `fraud-detection-v1` experiment. Every run from
    Step 5 is a row, with its `max_depth`, `min_samples`, `criterion`, and the `accuracy`,
-   `recall`, and `f1` scores in plain columns — the side-by-side view a hand-written log could
+   `recall`, and `f1` scores in plain columns — a side-by-side view a hand-written log could
    never give you.
 2. **Sort by what matters.** For fraud, catching real fraud matters most, so click the `recall`
-   column to sort highest-first. The winner floats to the top instantly.
+   column to sort highest first. The winner floats to the top instantly.
 3. **Compare head-to-head.** Tick the boxes on two or three runs and click **Compare**. MLflow
-   draws the dials and scores next to each other so you can see *exactly* which setting moved the
-   needle — e.g. "going from `max_depth 3` to `8` lifted recall but barely touched accuracy."
-4. **Prove it and hand it off.** Click the winning run to see its saved model, parameters, and
-   metrics on one page. That page *is* your evidence. It's also the run you crown in Step 7 with
+   lines up their settings and scores side by side, so you can see *exactly* which change moved
+   the needle — for example, "going from `max_depth 3` to `8` lifted recall but barely touched
+   accuracy."
+4. **Prove it and hand it off.** Click the winning run to see its saved model, settings, and
+   scores on one page. That page *is* your evidence. It's also the run you crown in Step 7 with
    `register_best_model.py`, so the model on the trophy shelf traces straight back to the numbers
    your teammate just saw.
 
 > This is the everyday loop of a real ML engineer: train a few variants, open the dashboard, sort
-> by the metric that matters, compare, and register the winner — with a paper trail anyone can check.
-> Press **Ctrl+C** in the terminal to stop the dashboard when you're done.
+> by the score that matters, compare, and register the winner — with a paper trail anyone can
+> check. Press **Ctrl+C** in the terminal to stop the dashboard when you're done.
 
 ## 4.9–4.11 Three more jobs, the exact same trick
 
-You've now trained a model, tracked it with MLflow, and crowned a winner — once, on one problem.
-The next three labs take that *exact same trick* and point it at three different real-world
-jobs, so you can see it's not a one-time party trick — it's how the whole industry works:
+You've now trained a model, tracked it with MLflow, and crowned a winner once, on one problem.
+The next three labs point that *exact same trick* at three different real-world jobs, so you can
+see it's not a one-time party trick — it's how the whole industry works:
 
 - **4.9 — a bank**, trying to catch fraud before it costs anyone money.
 - **4.10 — a hospital**, trying to catch patients who might need to come back soon.
@@ -361,20 +363,20 @@ jobs, so you can see it's not a one-time party trick — it's how the whole indu
 
 Each lab reuses the same MLflow setup from earlier in this chapter, but lives in its own new,
 self-contained script under `usecases/`. The bank lab reuses `data/transactions.csv` from Step 4.
-The hospital and streaming labs need two extra practice tables — make them once, right now, from
+The hospital and streaming labs need two extra practice tables. Make them once, right now, from
 this chapter's folder, before running either of those two labs:
 
 ```bash
 python usecases/generate_usecase_data.py
 ```
 
-**What you should see:** two lines telling you how many rows were made, and two new files land in
-`data/`: `patient_encounters.csv` and `subscriber_activity.csv`.
+**What you should see:** two lines telling you how many rows were made, and two new files land
+in `data/`: `patient_encounters.csv` and `subscriber_activity.csv`.
 
 ## 4.9 Guided Lab: Catching Fraud at a Bank
 
 *This lab assumes `mlflow ui` is already running at `127.0.0.1:5000`, exactly as you set up
-earlier in this chapter — if you closed it, run `mlflow ui` again from Step 6.*
+earlier in this chapter. If you closed it, run `mlflow ui` again from Step 6.*
 
 ---
 
@@ -383,7 +385,7 @@ earlier in this chapter — if you closed it, run `mlflow ui` again from Step 6.
 A bank's fraud team retrains its model all the time, because the tricks fraudsters use keep
 changing. Their whole job comes down to one question, asked every single morning: **"Of all the
 real fraud that happened yesterday, how much did we actually catch?"** That question has a
-number attached to it — **recall** — and this entire lab is built around getting that number as
+number attached to it — **recall** — and this whole lab is built around getting that number as
 high as possible.
 
 ### 4.9.2 Script: `fintech_fraud_credit_lab.py`
@@ -428,7 +430,7 @@ y = df['is_fraud']
 ```
 
 You're reading the same purchase table from earlier in this chapter. `X` holds the clues — the
-amount and the time of day. `y` holds the answer key — was it fraud, yes or no.
+amount and the time of day. `y` holds the answer key: was it fraud, yes or no.
 
 **STEP 2 — Open a fresh notebook page**
 
@@ -437,10 +439,10 @@ mlflow.set_experiment('fraud-detection-v1')
 with mlflow.start_run():
 ```
 
-This points MLflow at the same notebook section you already built earlier in this chapter — it's
+This points MLflow at the same notebook section you already built earlier in this chapter. It's
 just adding one more page to it, not starting over.
 
-**STEP 3 — Write down your dials and grade the quiz**
+**STEP 3 — Write down your settings and grade the quiz**
 
 ```python
 mlflow.log_param('max_depth', 6)
@@ -473,11 +475,11 @@ time you ran the script — 4 or 5 rows, if you followed Step 3 above.
 
 Click **Columns**, near the top of the table. Turn on `max_depth`, `criterion`, `recall`,
 `accuracy`, `f1`. Turn off anything you don't need — this table should be a workbench, not a
-museum; keep only what actually helps you decide.
+museum. Keep only what actually helps you decide.
 
 **STEP 4 — Sort by the number that actually matters**
 
-Click the **recall** column header once or twice until you see **DESC** (biggest first). Your
+Click the **recall** column header once or twice, until you see **DESC** (biggest first). Your
 best fraud-catcher is now sitting in row one, with zero math required from you.
 
 **STEP 5 — See the pattern, not just the numbers**
@@ -516,8 +518,8 @@ is: not a mystery box, just a folder you can open and read.
 There are two jobs to do here, and one command does both:
 
 1. **Register** — put the winning run on the trophy shelf under a name.
-2. **Promote** — stick a nickname on it, like a gold medal sticker, so nobody ever has to
-   remember a version number.
+2. **Promote** — stick a nickname on it, like a gold medal sticker, so nobody has to remember a
+   version number.
 
 **STEP 1 — Run this one line** (from the `chapter-04-mlflow` folder, with `(venv)` showing):
 
@@ -535,9 +537,9 @@ Registered FraudDetectionModel version 1
 Nickname 'Champion' now points to version 1
 ```
 
-**What the five dials mean, in plain words:**
+**What the five flags mean, in plain words:**
 
-| Dial | In plain words |
+| Flag | In plain words |
 |---|---|
 | `--experiment fraud-detection-v1` | Which group of runs to look in |
 | `--metric recall` | Which score decides the winner |
@@ -604,12 +606,12 @@ assumes `mlflow ui` is already running at `127.0.0.1:5000`.*
 A hospital wants to know which patients are likely to be readmitted within 30 days, so care
 teams can step in early and help before it happens again. The stakes here are different from the
 bank: **every guess this model makes has to be explainable, a year from now, to an auditor or a
-hospital review board.** MLflow's job in this lab isn't just remembering a score — it's building
+hospital review board.** MLflow's job in this lab isn't just remembering a score. It's building
 a paper trail the hospital is required to keep.
 
-The number this whole lab is built around is called **AUC** — a score for how well the model
-ranks the riskiest patients above the safest ones. Plain accuracy alone can hide the fact that a
-model is quietly failing its sickest patients, so AUC is the fairer measuring stick here.
+The score this whole lab is built around is called **AUC** — how well the model ranks the
+riskiest patients above the safest ones. Plain accuracy alone can hide the fact that a model is
+quietly failing its sickest patients, so AUC is the fairer measuring stick here.
 
 ### 4.10.2 Script: `healthcare_readmission_lab.py`
 
@@ -656,9 +658,9 @@ X = df[['age', 'length_of_stay', 'prior_admissions', 'chronic_conditions']]
 y = df['readmitted_30d']
 ```
 
-Same shape as every dataset in this chapter: `X` holds the clues (age, how many days they stayed,
-how many times they've been admitted before, how many ongoing health conditions they have), and
-`y` holds the answer you want predicted.
+Same shape as every dataset in this chapter: `X` holds the clues (age, how many days they
+stayed, how many times they've been admitted before, how many ongoing health conditions they
+have), and `y` holds the answer you want predicted.
 
 **STEP 2 — Stick a sticky note on the run before doing anything else**
 
@@ -668,10 +670,10 @@ mlflow.set_tag('reviewed_by', 'pending')
 ```
 
 This is new, and it's the single most important habit in this whole lab. A **tag** is a sticky
-note MLflow attaches to a run, separate from its dials and scores. `data_snapshot` writes down
-exactly which batch of patient data trained this model — because six months from now, "which
-data trained this model?" is a question you *will* get asked, and "I think it was the March
-data" is not good enough in a hospital.
+note MLflow attaches to a run, separate from its settings and scores. `data_snapshot` writes
+down exactly which batch of patient data trained this model — because six months from now,
+"which data trained this model?" is a question you *will* get asked, and "I think it was the
+March data" is not good enough in a hospital.
 
 **STEP 3 — Build the model and grade it a few different ways**
 
@@ -681,8 +683,8 @@ mlflow.log_metric('recall_high_risk', recall_score(y_te, y_pred))
 ```
 
 `roc_auc_score` needs the model's *confidence* numbers (`y_proba`), not just its final yes/no
-guesses — it's really asking "how well did the model rank risky patients above safe ones?"
-rather than just "did it get the final answer right?" Run this script 3–4 times, editing
+guesses. It's really asking "how well did the model rank risky patients above safe ones?"
+instead of just "did it get the final answer right?" Run this script 3–4 times, editing
 `n_estimators` (try 100, 200, 300) and `max_depth` (try 5, 8, 12) directly in the file each time.
 
 ---
@@ -764,7 +766,7 @@ Registered ReadmissionRiskModel version 1
 Nickname 'Staging' now points to version 1
 ```
 
-It's the same script you used in the fraud lab, with three dials changed: the group of runs is
+It's the same script you used in the fraud lab, with three changes: the group of runs is
 `readmission-risk-v1`, the score that picks the winner is `auc` instead of recall, and the
 nickname is **Staging** instead of Champion.
 
@@ -820,7 +822,7 @@ already running at `127.0.0.1:5000`.*
 A streaming platform — think Netflix, Peacock, any subscription service — wants to know which
 subscribers are about to cancel, early enough to try to keep them around. Viewing habits shift
 every week, so this model gets retrained all the time, just like the fraud model back in 4.9.
-The number this lab is built around is **recall on the "about to cancel" group** — missing a
+The score this lab is built around is **recall on the "about to cancel" group** — missing a
 subscriber who's about to leave means losing them with zero chance to step in and help.
 
 ### 4.11.2 Script: `entertainment_churn_lab.py`
@@ -922,8 +924,8 @@ this exact chart to decide how much compute a retraining run is actually worth p
 **STEP 6 — Compare two runs directly**
 
 Select the checkboxes next to your top two runs in the table, then click **Compare.** MLflow
-lays their dials and scores side by side — this is how you'd explain to a teammate, in one
-screenshot, exactly why one run beat the other.
+lines up their settings and scores side by side — this is how you'd explain to a teammate, in
+one screenshot, exactly why one run beat the other.
 
 > **A Detour You Might Land On**
 > If Compare shows blank charts, make sure you selected at least two runs with the checkboxes
@@ -962,14 +964,14 @@ Registered ChurnRiskModel version 1
 Nickname 'Champion' now points to version 1
 ```
 
-Same script a third time, three dials changed: the runs live in `subscriber-churn-v1`, the score
-that picks the winner is `recall_churn`, and the trophy-shelf name is `ChurnRiskModel`.
+Same script a third time, three changes: the runs live in `subscriber-churn-v1`, the score that
+picks the winner is `recall_churn`, and the trophy-shelf name is `ChurnRiskModel`.
 
 **STEP 2 — Go look at it.** In the web page, click **Models → ChurnRiskModel.** `Champion` now
 points straight at this version, so anyone asking for "the Champion churn model" always gets
 this exact one.
 
-By now you've done this three times in three different industries with the same one-line
+By now you've done this three times, in three different industries, with the same one-line
 command. That repetition is the point — this is the habit, not a trick specific to any one job.
 
 ---
@@ -989,7 +991,7 @@ with mlflow.start_run():
 ```
 
 **What this code is doing, in plain words:** it opens a brand-new notebook section named
-`content-recommender-v1`, writes down one dial (`embedding_dim`, a setting for how the
+`content-recommender-v1`, writes down one setting (`embedding_dim`, which controls how the
 recommender represents each show internally), then writes down two new kinds of scores instead
 of recall or AUC — `precision_at_10` (out of the top 10 shows suggested, what fraction did the
 person actually watch?) and `ndcg_at_10` (were the *very best* suggestions placed near the top of
@@ -1014,20 +1016,21 @@ changes. Only your judgment about what to track does.**
 Recommendation quality gets measured with precision@k, recall@k, and NDCG@k — not accuracy,
 which doesn't even make sense for a ranked list of suggestions. A real interview question you
 can now answer: *"Why wouldn't you use accuracy to evaluate a recommender?"* — Answer: accuracy
-needs one single right answer to check against; a recommendation is a whole ranked list, so you
-need a score that rewards putting the best matches near the top — which is exactly what NDCG
+needs one single right answer to check against, but a recommendation is a whole ranked list, so
+you need a score that rewards putting the best matches near the top. That's exactly what NDCG
 does.
 
 ## What you just learned
 
 - **MLflow** is a self-writing lab notebook — it does the **experiment tracking** for you.
-- **Hyperparameters** are the dials you set before training; MLflow records which ones you used.
+- **Hyperparameters** are the settings you choose before training; MLflow records which ones you
+  used.
 - The **MLflow UI** lets you compare many runs side by side in your browser.
 - A **model registry** is a trophy shelf for your best model, with a clear name and version.
 - **Tags** are sticky notes on a run, and **aliases** (like Champion or Staging) are nicknames
   stuck on a model version — both make a run or model easy to find and trust later.
-- The same notebook-and-trophy-shelf habit works on any problem — you just proved it three times,
-  on a bank, a hospital, and a streaming service.
+- The same notebook-and-trophy-shelf habit works on any problem — you just proved it three
+  times, on a bank, a hospital, and a streaming service.
 - This replaces the hand-written log file from Chapter 02 — same idea, far less effort and far
   fewer mistakes.
 
