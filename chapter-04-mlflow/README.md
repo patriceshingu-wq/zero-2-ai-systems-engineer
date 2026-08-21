@@ -460,6 +460,12 @@ nothing to compare — so don't skip it.
 
 ### 4.9.3 Now Open the UI (this is the new part)
 
+**Run this command**
+
+```python
+python usecases/fintech_fraud_credit_lab.py
+```
+
 **STEP 1 — Confirm you're in the right room**
 
 Open your browser to `127.0.0.1:5000`. Look at the top of the sidebar. It must say **"Model
